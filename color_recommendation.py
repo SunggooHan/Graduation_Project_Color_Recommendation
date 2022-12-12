@@ -8,7 +8,7 @@ import sys
 from  PIL  import Image
 import colorsys
 
-img_origin = cv2.imread('example.png', cv2.IMREAD_UNCHANGED)
+img_origin = cv2.imread('img.png', cv2.IMREAD_UNCHANGED)
 original = img_origin.copy()
 
 l = int(max(5, 6))
@@ -80,9 +80,9 @@ centroid=kmeans.cluster_centers_
 
 percent=[]
 for i in range(len(centroid)):
-  j=labels.count(i)
-  j=j/(len(labels))
-  percent.append(j)
+    j=labels.count(i)
+    j=j/(len(labels))
+    percent.append(j)
 
 # plot a pie chart
 plt.pie(percent,colors=np.array(centroid/255),labels=np.arange(len(centroid)))
@@ -120,8 +120,8 @@ hexlabels = []
 
 #get the main color
 for i in range(clt.cluster_centers_.shape[0]):
-  colors.append(tuple(clt.cluster_centers_[i]/255))
-  hexlabels.append(cs.to_hex(tuple(clt.cluster_centers_[i]/255)))
+    colors.append(tuple(clt.cluster_centers_[i]/255))
+    hexlabels.append(cs.to_hex(tuple(clt.cluster_centers_[i]/255)))
 
 #create pie chart for color
 plt.pie(hist,labels=hexlabels,colors=colors,autopct='%1.1f%%')
@@ -211,77 +211,26 @@ final_hsvlabels = kmeans_color_to_hsv(img)
 original_hsv = final_hsvlabels[0]
 print(original_hsv)
 
-#정규화
-df = pd.read_csv('ColorDataset.csv')
-hsva_h = df["hsva/h"]
-hsva_s = df["hsva/s"]
-hsva_v = df["hsva/v"]
+#논문에 나온 hsv distance 계산 방식
+hsv = original_hsv
 
-#h값 [0,2pi] 정규화
 df = pd.read_csv('ColorDataset.csv')
 hsva_h = df["hsva/h"].to_numpy()
-hsva_h = hsva_h.reshape(-1,1)
-
-from sklearn.preprocessing import MinMaxScaler
-from math import pi
-
-scaler = MinMaxScaler(feature_range=(0,2*pi))
-scaler.fit(hsva_h)
-hsva_h_scaled = scaler.transform(hsva_h)
-
-hsva_h = pd.DataFrame(hsva_h_scaled, columns=['hsva_h'])
-
-#sv값 [0,1] 정규화
-from sklearn.preprocessing import minmax_scale
-
-hsva_s = pd.DataFrame(data=minmax_scale(hsva_s))
-hsva_v = pd.DataFrame(data=minmax_scale(hsva_v))
-
-hsva_s.columns = ["hsva_s"]
-hsva_v.columns = ["hsva_v"]
-
-scaled_hsv_set = hsva_h.join(hsva_s).join(hsva_v)
-
-#(sin(h1)*s1*v1 - sin(h2)*s2*v2 )^2 + (cos(h1)*s1*v1 - cos(h2)*s2*v2)^2 + ( v1 - v2 )^2
-
-hsv = original_hsv
-hsv_h = hsv[0]
-hsv_s = hsv[1]
-hsv_v = hsv[2]
-
-#추출한 h 값 정규화
-hsv_h = (hsv_h/360)*2*pi
-
-#추출한 s값 정규화
-hsv_s = hsv_s/100
-
-#추출한 s값 정규화
-hsv_v = hsv_v/100
-
-scaled_hsv = [hsv_h, hsv_s, hsv_v]
-
-#거리계산
-import math
-
-hsv_h = scaled_hsv[0]
-hsv_s = scaled_hsv[1]
-hsv_v = scaled_hsv[2]
-
-df = scaled_hsv_set
-df_origin = pd.read_csv('ColorDataset.csv')
-hsva_h = df["hsva_h"].to_numpy()
-hsva_s = df["hsva_s"].to_numpy()
-hsva_v = df["hsva_v"].to_numpy()
+hsva_s = df["hsva/s"].to_numpy()
+hsva_v = df["hsva/v"].to_numpy()
 dist = []
 
 for i in range(len(hsva_h)):
-    distance = ((math.sin(hsv_h)*hsv_s*hsv_v)-(math.sin(hsva_h[i])*hsva_s[i]*hsva_v[i]))*((math.sin(hsv_h)*hsv_s*hsv_v)-(math.sin(hsva_h[i])*hsva_s[i]*hsva_v[i]))
-    + ((math.cos(hsv_h)*hsv_s*hsv_v)-(math.cos(hsva_h[i])*hsva_s[i]*hsva_v[i]))*((math.cos(hsv_h)*hsv_s*hsv_v)-(math.cos(hsva_h[i])*hsva_s[i]*hsva_v[i]))
-    + (hsv_v-hsva_v[i])*(hsv_v-hsva_v[i])
-    
+    if (hsv[0]-hsva_h[i]) < 180:
+        h_diff = hsv[0]-hsva_h[i]
+    else:
+        h_diff = 360 - (hsv[0]-hsva_h)
+
+    distance = (hsv[1]*abs(h_diff) + abs(hsv[1]-hsva_s[i]) + abs(hsv[2]-hsva_v[i]))
     dist.append(distance)
 
 min(dist)
-num = dist.index(min(dist))
 
-print(df_origin.loc[df_origin['key'] == df_origin.loc[num, 'key']])
+num = dist.index(min(dist))
+df.iloc[num]
+print(df.loc[df['key'] == df.loc[num, 'key']])
